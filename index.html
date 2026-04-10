@@ -1,0 +1,94 @@
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<header>
+  <div class="header-left">
+    <span style="font-size: 12px; color: #64748b; display: block; text-transform: uppercase;">Chemist Pro</span>
+    <h2 id="pageTitle">Medicines</h2>
+  </div>
+  
+  <div class="header-right">
+    <div id="syncStatus" style="width: 8px; height: 8px; background: #16a34a; border-radius: 50%; display: inline-block;"></div>
+    <span style="font-size: 10px; color: #64748b; margin-left: 5px;">LIVE</span>
+  </div>
+</header>
+
+<div id="toast-container"></div>
+
+<main>
+  <div id="homePage" class="page active">
+    <div id="medicineList"></div>
+  </div>
+
+  <div id="searchPage" class="page">
+    <div class="search-container" style="padding:15px;">
+        <h3>Inventory Search</h3>
+        <input type="text" id="searchInput" placeholder="🔍 Search medicine name...">
+        <div id="searchResults"></div>
+    </div>
+  </div>
+
+  <div id="loanPage" class="page">
+    <div id="loanList"></div>
+  </div>
+
+  <div id="dashboardPage" class="page">
+    <div class="card">
+        <h3>Total Medicines</h3>
+        <p id="totalMed" style="font-size:24px; font-weight:bold;">0</p>
+    </div>
+    <div class="card">
+        <h3>Outstanding Loans</h3>
+        <p style="font-size:24px; font-weight:bold;"><span id="totalLoan">0</span></p>
+    </div>
+  </div>
+</main>
+
+<button id="fab" onclick="document.getElementById('modal').classList.remove('hidden')">+</button>
+
+<nav>
+  <div class="nav-group">
+    <button onclick="changePage('homePage', 'Medicines')" id="nav-home" class="active-nav">
+      <div class="icon">🏠</div>
+      <span>Home</span>
+    </button>
+    <button onclick="changePage('searchPage', 'Search')" id="nav-search">
+      <div class="icon">🔍</div>
+      <span>Search</span>
+    </button>
+  </div>
+
+  <div class="nav-spacer"></div>
+
+  <div class="nav-group">
+    <button onclick="changePage('loanPage', 'Loans')" id="nav-loans">
+      <div class="icon">💰</div>
+      <span>Loans</span>
+    </button>
+    <button onclick="changePage('dashboardPage', 'Stats')" id="nav-dash">
+      <div class="icon">📊</div>
+      <span>Stats</span>
+    </button>
+  </div>
+</nav>
+
+<div id="modal" class="hidden">
+  <div class="modal-content">
+    <h3>Add Data</h3>
+    <input id="name" placeholder="Medicine Name">
+    <input id="price" placeholder="Price (₦)" type="number">
+    <input type="text" id="quantity" placeholder="Quantity (e.g. 2 Rolls or 10pcs)">
+    <button class="btn-save" onclick="saveMedicine()">Save Medicine</button>
+    
+    <div class="separator"><span>OR BULK</span></div>
+    <textarea id="bulkInput" placeholder="Format: Name, Price, Quantity (one per line)" rows="5"></textarea>
+<button class="btn-bulk" onclick="importBulk()">🚀 Run Bulk Import</button>
+    <hr style="margin:20px 0; border:0; border-top:1px solid #334155;">
+    
+    <h3>Loan</h3>
+    <input id="loanName" placeholder="Customer Name">
+    <input id="loanAmount" placeholder="Amount (₦)" type="number">
+    <button class="btn-loan" onclick="saveLoan()">Save Loan</button>
+    
+    <button onclick="document.getElementById('modal').classList.add('hidden')" class="btn-close">Close</button>
+  </div>
+</div>
