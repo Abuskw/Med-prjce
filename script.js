@@ -23,6 +23,8 @@ function showSkeletons(containerId) {
     <div class="skeleton-card"></div>
     <div class="skeleton-card"></div>
     <div class="skeleton-card"></div>
+    <div class="skeleton-card"></div>
+    <div class="skeleton-card"></div>
   `;
 }
 
@@ -41,7 +43,7 @@ function showToast(message, type = 'success') {
   
   toast.innerHTML = `
     <span>${message}</span>
-    <span style="margin-left:15px; cursor:pointer; opacity:0.5;" onclick="this.parentElement.remove()">✕</span>
+    <span style="margin-center:15px; cursor:pointer; opacity:0.5;" onclick="this.parentElement.remove()">✕</span>
   `;
 
   container.appendChild(toast);
@@ -54,11 +56,38 @@ function showToast(message, type = 'success') {
 
 // --- 4. SYMMETRICAL NAVIGATION ---
 function changePage(pageId, title) {
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-  const target = document.getElementById(pageId);
-  if(target) target.classList.add("active");
+  const titleEl = document.getElementById("pageTitle");
+  const allPages = document.querySelectorAll(".page");
   
-  document.getElementById("pageTitle").innerText = title;
+  // 1. START PREMIUM ANIMATION (FADE OUT)
+  titleEl.style.opacity = "0";
+  titleEl.style.transform = "translateY(-10px)";
+  
+  // 2. PAGE CLEANUP & SWITCH
+  allPages.forEach(p => {
+    p.classList.remove("active");
+    // Explicitly remove grid behavior from other pages if necessary
+    p.style.display = "none"; 
+  });
+
+  const target = document.getElementById(pageId);
+  if(target) {
+    target.classList.add("active");
+    // Ensure Bento only triggers for Dashboard/Stats
+    target.style.display = (pageId === 'dashboardPage') ? "grid" : "block";
+  }
+
+  // 3. COMPLETE ANIMATION (FADE IN NEW TITLE)
+  setTimeout(() => {
+    titleEl.innerText = title.toUpperCase();
+    titleEl.style.opacity = "1";
+    titleEl.style.transform = "translateY(0)";
+    
+    // HAPTIC FEEDBACK (Physical "click" feel for CEO)
+    if (navigator.vibrate) navigator.vibrate(5);
+  }, 200);
+
+  // 4. NAVIGATION BAR SYNC
   document.querySelectorAll("nav button").forEach(btn => btn.classList.remove("active-nav"));
   
   const navMap = {
@@ -70,9 +99,11 @@ function changePage(pageId, title) {
 
   const activeBtnId = navMap[pageId];
   if(activeBtnId) {
-    document.getElementById(activeBtnId).classList.add("active-nav");
+    const btn = document.getElementById(activeBtnId);
+    if(btn) btn.classList.add("active-nav");
   }
 }
+
 
 // --- 5. MODAL & UI CONTROLS ---
 function closeModal() {
@@ -147,7 +178,8 @@ function importBulk() {
 db.ref("medicines").on("value", snap => {
   const list = document.getElementById("medicineList");
   const searchResults = document.getElementById("searchResults");
-  const totalMedDisplay = document.getElementById("totalMed");
+  const totalMedDisplay = document.getElementById("totalMedCount");
+
   const inventoryValueDisplay = document.getElementById("inventoryValue");
   
   
@@ -244,66 +276,118 @@ document.getElementById("searchInput").addEventListener("input", e => {
 });
 
 // --- 8. LOAN & DEBT LOGIC ---
-function saveLoan() {
-  const name = document.getElementById("loanName").value.trim().toLowerCase();
-  const amount = parseInt(document.getElementById("loanAmount").value);
-  
-  if (!name || isNaN(amount)) {
-    return showToast("Fill all loan details", "error");
-  }
+function saveDetailedLoan() {
 
-  db.ref("loans/" + name + "/records").push({
-    amount,
-    date: new Date().toLocaleDateString()
-  }).then(() => {
-    closeModal();
-    showToast(`Loan recorded for ${name.toUpperCase()}`);
-  });
+    const name = document.getElementById('loanName').value.trim();
+
+    const item = document.getElementById('loanItem').value.trim();
+
+    const price = Number(document.getElementById('loanAmount').value);
+
+
+
+    if (!name || !item || price <= 0) return showToast("Fill Name, Item, and Price!", "error");
+
+
+
+    const debtorRef = db.ref('loans/' + name);
+
+    debtorRef.once('value', snapshot => {
+
+        let data = snapshot.val() || { name: name, totalOwed: 0, history: [] };
+
+        if(!data.history) data.history = [];
+
+        data.history.push({ medicine: item, amount: price, date: new Date().toLocaleDateString() });
+
+        data.totalOwed = (data.totalOwed || 0) + price;
+
+        debtorRef.set(data).then(() => {
+
+            showToast(`Added to ${name}'s debt`);
+
+            document.getElementById('loanItem').value = '';
+
+            document.getElementById('loanAmount').value = '';
+
+        });
+
+    });
+
 }
-
 db.ref("loans").on("value", snap => {
   const list = document.getElementById("loanList");
   if (!list) return;
 
   if (!snap.exists()) {
-    list.innerHTML = "<p style='text-align:center; color:#64748b;'>No loans found</p>";
+    list.innerHTML = "<p style='text-align:center;'>No active loans</p>";
     return;
   }
 
   const data = snap.val();
   let htmlContent = "";
-  let totalBalance = 0;
 
-  for (let user in data) {
-    let sum = 0;
-    let paid = data[user].paid || 0;
-    if (data[user].records) {
-      Object.values(data[user].records).forEach(rec => sum += rec.amount);
+  for (let key in data) {
+    const debtor = data[key];
+    
+    
+    // --- TRANSITION LOGIC ---
+    // Check if it's the new version (totalOwed) or old version (balance calculation)
+    let currentBalance = 0;
+    let historyRows = "";
+
+    if (debtor.totalOwed !== undefined) {
+        // NEW VERSION logic
+        currentBalance = debtor.totalOwed;
+        debtor.history.forEach(entry => {
+            
+          // --- HIGH-END HISTORY GENERATOR ---
+historyRows += `
+<div class="statement-row">
+    <div class="stmt-info">
+        <span class="stmt-date">${entry.date}</span>
+        <span class="stmt-desc">${entry.medicine}</span>
+    </div>
+    <div class="stmt-status ${entry.amount < 0 ? 'status-pay' : 'status-debt'}">
+        ${entry.amount < 0 ? 'PAYS' : 'DEBT'}
+    </div>
+    <div class="stmt-amount">₦${Math.abs(entry.amount).toLocaleString()}</div>
+</div>`;
+
+        });
+    } else {
+        // OLD VERSION logic (Legacy support)
+        let sum = 0;
+        let paid = debtor.paid || 0;
+        if (debtor.records) {
+            Object.values(debtor.records).forEach(rec => sum += rec.amount);
+        }
+        currentBalance = sum - paid;
+        historyRows = `<div class="loan-history-item" style="color:#fbbf24;">Legacy Record: Manual update needed</div>`;
     }
-    let balance = sum - paid;
-    totalBalance += balance;
 
     htmlContent += `
-      <div class="card" style="border-left-color: ${balance > 0 ? '#ef4444' : '#16a34a'}">
-        <h3 style="color:#3b82f6">${user.toUpperCase()}</h3>
-        <p>Debt: ₦${sum.toLocaleString()}</p>
-        <p>Paid: ₦${paid.toLocaleString()}</p>
-        <p style="color:${balance > 0 ? '#ef4444' : '#16a34a'}">
-          <b>Balance: ₦${balance.toLocaleString()}</b>
-        </p>
-        ${balance > 0 ? `
-          <div style="margin-top:10px;">
-            <input id="pay-${user}" type="number" placeholder="Enter payment" style="margin-bottom:8px">
-            <button onclick="payLoan('${user}')" class="btn-save">Pay</button>
-          </div>
-        ` : '<b style="color:#16a34a">✅ Settled</b>'}
+      <div class="card" style="border-left: 4px solid ${currentBalance > 0 ? '#ef4444' : '#16a34a'}">
+        <div style="display:flex; justify-content:space-between;">
+            <h3 style="color:#3b82f6">${key.toUpperCase()}</h3>
+            <b style="color:${currentBalance > 0 ? '#ef4444' : '#16a34a'}">₦${currentBalance.toLocaleString()}</b>
+        </div>
+        
+        <div class="history-container" style="background:#1e293b; padding:5px; border-radius:5px; margin:10px 0;">
+            ${historyRows}
+        </div>
+
+        <div class="card-actions">
+          <button onclick="processPayment('${key}')" class="btn-save">Payment</button>
+          <button onclick="deleteDebtor('${key}')" class="delete-btn">Clear</button>
+        </div>
       </div>`;
   }
-  list.innerHTML = htmlContent;
-  const totalLoanDisplay = document.getElementById("totalLoan");
+ 
+list.innerHTML = htmlContent;
+  
   if(totalLoanDisplay) totalLoanDisplay.innerText = `₦${totalBalance.toLocaleString()}`;
 });
-
 function payLoan(user) {
   const amountInput = document.getElementById("pay-" + user);
   const amount = parseInt(amountInput.value);
@@ -318,3 +402,76 @@ function payLoan(user) {
     });
   });
 }
+// --- PAYMENT LOGIC (Handles both Old and New Debtors) ---
+function processPayment(name) {
+    const amount = Number(prompt(`How much is ${name} paying?`));
+    if (amount <= 0 || isNaN(amount)) return;
+
+    const ref = db.ref("loans/" + name);
+    ref.once("value", snapshot => {
+        let data = snapshot.val();
+        
+        if (data.totalOwed !== undefined) {
+            // NEW VERSION: Subtract from total and add to history
+            data.totalOwed -= amount;
+            if (!data.history) data.history = [];
+            data.history.push({
+                medicine: "CASH PAYMENT",
+                amount: -amount,
+                date: new Date().toLocaleDateString()
+            });
+        } else {
+            // OLD VERSION: Just update the "paid" field
+            let currentPaid = data.paid || 0;
+            data.paid = currentPaid + amount;
+        }
+
+        ref.set(data).then(() => {
+            showToast(`Payment of ₦${amount.toLocaleString()} recorded`);
+        });
+    });
+}
+
+// --- DELETE/CLEAR LOGIC ---
+function deleteDebtor(name) {
+    if (confirm(`CEO: Are you sure you want to wipe all records for ${name}? This cannot be undone.`)) {
+        db.ref("loans/" + name).remove().then(() => {
+            showToast(`${name}'s record cleared from system`, "error");
+        }).catch(err => {
+            console.error("Delete failed:", err);
+        });
+    }
+}
+// --- DASHBOARD STATS SYNC ---
+db.ref("loans").on("value", snap => {
+  const totalLoanDisplay = document.getElementById("totalLoanStat"); // Ensure this ID exists in your HTML stat card
+  
+  if (!snap.exists()) {
+    if (totalLoanDisplay) totalLoanDisplay.innerText = "₦0";
+    return;
+  }
+
+  const data = snap.val();
+  let grandTotal = 0;
+
+  Object.keys(data).forEach(key => {
+    const debtor = data[key];
+    
+    // 1. Calculate for new itemized structure
+    if (debtor.totalOwed !== undefined) {
+      grandTotal += debtor.totalOwed;
+    } 
+    // 2. Calculate for legacy structure (if any remains)
+    else if (debtor.records) {
+      let sum = 0;
+      let paid = debtor.paid || 0;
+      Object.values(debtor.records).forEach(rec => sum += rec.amount);
+      grandTotal += (sum - paid);
+    }
+  });
+
+  // Update the Dashboard Stat Card
+  if (totalLoanDisplay) {
+    totalLoanDisplay.innerText = `₦${grandTotal.toLocaleString()}`;
+  }
+});
