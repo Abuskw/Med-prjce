@@ -6,16 +6,17 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <header>
-  <div class="header-left">
-    <span style="font-size: 12px; color: #64748b; display: block; text-transform: uppercase;">SHEKEWA MEDICINE STORE</span>
-    <h2 id="pageTitle">Medicines</h2>
-  </div>
-  
-  <div class="header-right">
-    <div id="syncStatus" style="width: 8px; height: 8px; background: #16a34a; border-radius: 50%; display: inline-block;"></div>
-    <span style="font-size: 10px; color: #64748b; margin-left: 5px;">LIVE</span>
-  </div>
+ 
+    <div class="top-bar">
+        <div class="brand-group">
+            <span class="pulse-dot"></span>
+            <small>SHEKEWA MEDICINE STORE • LIVE</small>
+        </div>
+        <div class="time-group" id="liveClock">17:45</div>
+    </div>
+    <h2 id="pageTitle">DASHBOARD</h2>
 </header>
+
 
 <div id="toast-container"></div>
 
@@ -35,16 +36,29 @@
   <div id="loanPage" class="page">
     <div id="loanList"></div>
   </div>
+   <div id="dashboardPage" class="page">
+    <div class="bento-grid">
+        <div class="stat-card-large">
+            <small>TOTAL CAPITAL OUT</small>
+            <h1 id="totalLoanStat">₦0</h1>
+            <div class="health-indicator">System Health: 92%</div>
+        </div>
 
-  <div id="dashboardPage" class="page">
-    <div class="card">
-        <h3>Total Medicines</h3>
-        <p id="totalMed" style="font-size:24px; font-weight:bold;">0</p>
+        <div class="stat-card-small">
+            <small>MEDICINES</small>
+            <h2 id="totalMedCount">0</h2>
+        </div>
+
+        <div class="stat-card-small">
+            <small>INV. VALUE</small>
+            <h2 id="inventoryValue">₦0</h2>
+        </div>
     </div>
-    <div class="card">
-        <h3>Outstanding Loans</h3>
-        <p style="font-size:24px; font-weight:bold;"><span id="totalLoan">0</span></p>
-    </div>
+</div>
+
+  
+</div>
+
   </div>
 </main>
 
@@ -88,11 +102,19 @@
     <textarea id="bulkInput" placeholder="Format: Name, Price, Quantity (one per line)" rows="5"></textarea>
 <button class="btn-bulk" onclick="importBulk()">🚀 Run Bulk Import</button>
     <hr style="margin:20px 0; border:0; border-top:1px solid #334155;">
+    <div class="loan-section">
+    <h3>Add Loan Entry</h3>
+    <input id="loanName" placeholder="Customer Name" type="text">
+    <input id="loanItem" placeholder="Medicine Name (e.g. Flagyl)" type="text">
+    <input id="loanAmount" placeholder="Price (₦)" type="number">
     
-    <h3>Loan</h3>
-    <input id="loanName" placeholder="Customer Name">
-    <input id="loanAmount" placeholder="Amount (₦)" type="number">
-    <button class="btn-loan" onclick="saveLoan()">Save Loan</button>
+    <button class="btn-loan" onclick="saveDetailedLoan()">Save Loan</button>
+
+    <hr>
+    <h3>Active Debtors</h3>
+    <div id="loanListArea">
+        </div>
+</div>
     
     <button onclick="document.getElementById('modal').classList.add('hidden')" class="btn-close">Close</button>
   </div>
